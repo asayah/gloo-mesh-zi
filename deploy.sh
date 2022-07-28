@@ -156,7 +156,6 @@ EOF
 
 
 # deploy cluster1, and cluster2, cluster3 environment apps aoa
-kubectl apply -f platform-owners/mgmt/mgmt-apps.yaml --context ${mgmt_context}
 kubectl apply -f platform-owners/cluster1/cluster1-apps.yaml --context ${cluster1_context}
 kubectl apply -f platform-owners/cluster2/cluster2-apps.yaml --context ${cluster2_context}
 
