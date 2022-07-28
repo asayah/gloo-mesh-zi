@@ -21,26 +21,26 @@ cd bootstrap-argocd
 ./install-argocd.sh insecure-rootpath ${mgmt_context}
 ./install-argocd.sh insecure-rootpath ${cluster1_context}
 ./install-argocd.sh insecure-rootpath ${cluster2_context}
-./install-argocd.sh insecure-rootpath ${cluster3_context}
+
 cd ..
 
 # wait for argo cluster rollout
 ./tools/wait-for-rollout.sh deployment argocd-server argocd 20 ${mgmt_context}
 ./tools/wait-for-rollout.sh deployment argocd-server argocd 20 ${cluster1_context}
 ./tools/wait-for-rollout.sh deployment argocd-server argocd 20 ${cluster2_context}
-./tools/wait-for-rollout.sh deployment argocd-server argocd 20 ${cluster3_context}
+
 
 # deploy mgmt, cluster1, and cluster2, cluster3 cluster config aoa
 kubectl apply -f platform-owners/mgmt/mgmt-cluster-config.yaml --context ${mgmt_context}
 kubectl apply -f platform-owners/cluster1/cluster1-cluster-config.yaml --context ${cluster1_context}
 kubectl apply -f platform-owners/cluster2/cluster2-cluster-config.yaml --context ${cluster2_context}
-kubectl apply -f platform-owners/cluster3/cluster3-cluster-config.yaml --context ${cluster3_context}
+
 
 # deploy mgmt, cluster1, and cluster2, cluster3 environment infra app-of-apps
 kubectl apply -f platform-owners/mgmt/mgmt-infra.yaml --context ${mgmt_context}
 kubectl apply -f platform-owners/cluster1/cluster1-infra.yaml --context ${cluster1_context}
 kubectl apply -f platform-owners/cluster2/cluster2-infra.yaml --context ${cluster2_context}
-kubectl apply -f platform-owners/cluster3/cluster3-infra.yaml --context ${cluster3_context}
+
 
 # wait for completion of gloo-mesh install
 ./tools/wait-for-rollout.sh deployment gloo-mesh-mgmt-server gloo-mesh 10 ${mgmt_context}
@@ -153,65 +153,17 @@ spec:
 EOF
 
 
-kubectl apply --context ${cluster3_context} -f- <<EOF
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: gm-enterprise-agent-${cluster3_context}
-  namespace: argocd
-spec:
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: gloo-mesh
-  source:
-    repoURL: 'https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent'
-    targetRevision: ${gloo_mesh_version}
-    chart: gloo-mesh-agent
-    helm:
-      valueFiles:
-        - values.yaml
-      parameters:
-        - name: cluster
-          value: '${cluster3_context}'
-        - name: relay.serverAddress
-          value: '${SVC}:9900'
-        - name: relay.authority
-          value: 'gloo-mesh-mgmt-server.gloo-mesh'
-        - name: relay.clientTlsSecret.name
-          value: 'gloo-mesh-agent-cluster3-tls-cert'
-        - name: relay.clientTlsSecret.namespace
-          value: 'gloo-mesh'
-        - name: relay.rootTlsSecret.name
-          value: 'relay-root-tls-secret'
-        - name: relay.rootTlsSecret.namespace
-          value: 'gloo-mesh'
-        - name: rate-limiter.enabled
-          value: 'false'
-        - name: ext-auth-service.enabled
-          value: 'false'
-        # enabled for future vault integration
-        - name: istiodSidecar.createRoleBinding
-          value: 'true'
-  syncPolicy:
-    automated:
-      prune: false
-      selfHeal: false
-    syncOptions:
-    - Replace=true
-    - ApplyOutOfSyncOnly=true
-  project: default
-EOF
+
 
 # deploy cluster1, and cluster2, cluster3 environment apps aoa
 kubectl apply -f platform-owners/mgmt/mgmt-apps.yaml --context ${mgmt_context}
 kubectl apply -f platform-owners/cluster1/cluster1-apps.yaml --context ${cluster1_context}
 kubectl apply -f platform-owners/cluster2/cluster2-apps.yaml --context ${cluster2_context}
-kubectl apply -f platform-owners/cluster3/cluster3-apps.yaml --context ${cluster3_context}
+
 
 # wait for completion of bookinfo install
 ./tools/wait-for-rollout.sh deployment productpage-v1 bookinfo-frontends 10 ${cluster1_context}
 ./tools/wait-for-rollout.sh deployment productpage-v1 bookinfo-frontends 10 ${cluster2_context}
-./tools/wait-for-rollout.sh deployment productpage-v1 bookinfo-frontends 10 ${cluster3_context}
 
 # deploy mesh config aoa
 kubectl apply -f platform-owners/mgmt/mgmt-mesh-config.yaml --context ${mgmt_context}
