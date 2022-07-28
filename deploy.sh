@@ -214,8 +214,8 @@ kubectl apply -f platform-owners/cluster3/cluster3-apps.yaml --context ${cluster
 ./tools/wait-for-rollout.sh deployment productpage-v1 bookinfo-frontends 10 ${cluster3_context}
 
 # deploy mesh config aoa
-kubectl apply -f platform-owners/${mgmt_context}/${mgmt_context}-mesh-config.yaml --context ${mgmt_context}
-kubectl apply -f platform-owners/${cluster1_context}/${cluster1_context}-mesh-config.yaml --context ${cluster1_context}
+kubectl apply -f platform-owners/mgmt/mgmt-mesh-config.yaml --context ${mgmt_context}
+kubectl apply -f platform-owners/cluster1/cluster1-mesh-config.yaml --context ${cluster1_context}
 
 # echo port-forward commands
 echo
@@ -225,3 +225,4 @@ echo
 echo "access argocd dashboard:"
 echo "kubectl port-forward svc/argocd-server -n argocd 9999:443 --context ${mgmt_context}"
 
+echo "You can connect now to argo using the following path: http://localhost:9999/argo, using the username/password admin/solo.io"

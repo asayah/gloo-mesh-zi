@@ -168,6 +168,7 @@ You can also access the ArgoCD UI in each cluster:
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 9999:443 --context mgmt 
 ```
+You can connect now to argo using the following path: `localhost:9999/argo`
 Using the username/password `admin/solo.io`
 
 
