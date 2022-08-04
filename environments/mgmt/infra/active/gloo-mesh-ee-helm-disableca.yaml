@@ -14,7 +14,7 @@ spec:
     chart: gloo-mesh-enterprise
     helm:
       values: |
-        licenseKey: eyJleHAiOjE2NTkxOTU4OTUsImlhdCI6MTY1NTczOTg5NSwiayI6IjBuK2J1dyIsImx0IjoidHJpYWwiLCJwcm9kdWN0IjoiZ2xvbyJ9.Wnc1FVMhPZrAMMX4VGc6VsQ-9gsNfN_5fHkloR8rhf0
+        licenseKey: eyJhZGRPbnMiOltdLCJleHAiOjE2NjE5NjEzMDgsImlhdCI6MTY1OTM2OTMwOCwiayI6Ik55bm9VQSIsImx0IjoidHJpYWwiLCJwcm9kdWN0IjoiZ2xvby1tZXNoLWdhdGV3YXkifQ.r0YLls7-2EWTvg4W7Ih10DQp5C2zOYYbXunR-ce9tG4
         mgmtClusterName: mgmt
         glooMeshMgmtServer:
           relay:
