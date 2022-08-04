@@ -411,47 +411,6 @@ spec:
         - host: '*'
 ```
 
-And Update the Route Table to include the cluster2: 
+The Bookinfo app should be exposed an all the worklaod clusters now. 
 
-
-```bash
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: productpage
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  hosts:
-    - '*'
-  virtualGateways:
-    - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster1
-    - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster2      
-  workloadSelectors: []
-  http:
-    - name: productpage
-      matchers:
-      - uri:
-          exact: /productpage
-      - uri:
-          prefix: /static
-      - uri:
-          exact: /login
-      - uri:
-          exact: /logout
-      - uri:
-          prefix: /api/v1/products
-      forwardTo:
-        destinations:
-          - ref:
-              name: productpage
-              namespace: bookinfo-frontends
-            port:
-              number: 9080
-```
 
