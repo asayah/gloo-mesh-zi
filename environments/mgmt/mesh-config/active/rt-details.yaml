@@ -1,0 +1,22 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: details
+  namespace: productpage
+spec:
+  hosts:
+    - 'details.details.svc.cluster.local'
+  workloadSelectors: []
+  http:
+    - name: details
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: details
+              namespace: details
+              cluster: cluster2
+            port:
+              number: 9080

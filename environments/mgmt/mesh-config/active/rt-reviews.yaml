@@ -1,0 +1,22 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: reviews
+  namespace: productpage
+spec:
+  hosts:
+    - 'reviews.reviews.svc.cluster.local'
+  workloadSelectors: []
+  http:
+    - name: reviews
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: reviews
+              namespace: reviews
+            kind: VIRTUAL_DESTINATION
+            port:
+              number: 9080

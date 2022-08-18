@@ -1,0 +1,76 @@
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: gateways
+  namespace: istio-gateways
+spec:
+  importFrom:
+  - workspaces:
+    - name: productpage
+  exportTo:
+  - workspaces:
+    - name: "*"
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - namespace: gloo-mesh-addons    
+
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: productpage
+  namespace: productpage
+spec:
+  importFrom:
+  - workspaces:
+    - name: reviews
+    - name: details
+    - name: gateways    
+  exportTo:
+  - workspaces:
+    - name: gateways
+---
+
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: details
+  namespace: details
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways 
+  exportTo:
+  - workspaces:
+    - name: productpage
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - workspace: details
+        labels:
+          app: details    
+---
+
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: reviews
+  namespace: reviews
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways 
+  exportTo:
+  - workspaces:
+    - name: productpage
+  options:
+    federation:
+      enabled: true
+      hostSuffix: global
+      serviceSelector:
+      - workspace: reviews
+        labels:
+          app: reviews

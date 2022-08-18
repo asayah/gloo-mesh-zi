@@ -2,7 +2,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
   name: productpage
-  namespace: bookinfo-frontends
+  namespace: productpage
   labels:
     expose: "true"
 spec:
@@ -15,21 +15,15 @@ spec:
   workloadSelectors: []
   http:
     - name: productpage
+      labels:
+#        oauth: "true"
       matchers:
       - uri:
-          exact: /productpage
-      - uri:
-          prefix: /static
-      - uri:
-          exact: /login
-      - uri:
-          exact: /logout
-      - uri:
-          prefix: /api/v1/products
+          prefix: /
       forwardTo:
         destinations:
           - ref:
               name: productpage
-              namespace: bookinfo-frontends
+              namespace: productpage
             port:
               number: 9080

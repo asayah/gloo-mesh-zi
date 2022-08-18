@@ -1,0 +1,17 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: reviews
+  namespace: reviews
+  labels:
+    failover: "true"  
+spec:
+  hosts:
+  - reviews.global
+  services:
+  - namespace: reviews
+    labels:
+      app: reviews
+  ports:
+    - number: 9080
+      protocol: HTTP

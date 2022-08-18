@@ -197,36 +197,54 @@ spec:
             istio: eastwestgateway
 ```
 
+In this example we are we will have 4 teams, the gateway team described above and 3 application teams: productpage (UI team), details, and reviews, let's create the workspaces using the following config:
+```
 
-
-We're going to create a workspace for the team in charge of the Gateways.
-
-The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
-
-Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s), add the following to the management cluster (mesh-config folder): 
-
-
-```bash
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
-  name: gateways
+  name: productpage
   namespace: gloo-mesh
 spec:
   workloadClusters:
-  - name: cluster1
+  - name: '*'
     namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-  - name: cluster2
+    - name: productpage
+
+
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: details
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: '*'
     namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
+    - name: details
+
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: reviews
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: '*'
+    namespaces:
+    - name: reviews
+
+``` 
+
+
+In this example the bookinfo application is splitted accross 2 different clusters, the cluster1 has the north south gateway and the UI application (productpage), and the backend applications live on the cluster2: reviews and details. 
+
+To allow the communication between these components we will use workspaces settings, that will allow us to import and export configuration from a workspace to another: 
+
+
 ```
-
-Then, the Gateway team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `gateways` workspace (so the `istio-gateways` or the `gloo-mesh-addons` namespace), add the following in the cluster1 config (mesh-config folder):
-
-```bash
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -235,84 +253,76 @@ metadata:
 spec:
   importFrom:
   - workspaces:
-    - selector:
-        allow_ingress: "true"
-    resources:
-    - kind: SERVICE
-    - kind: ALL
-      labels:
-        expose: "true"
+    - name: productpage
   exportTo:
   - workspaces:
-    - selector:
-        allow_ingress: "true"
-    resources:
-    - kind: SERVICE
-```
+    - name: "*"
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - namespace: gloo-mesh-addons    
 
-The Gateway team has decided to import the following from the workspaces that have the label `allow_ingress` set to `true` (using a selector):
-- all the Kubernetes services exported by these workspaces
-- all the resources (RouteTables, VirtualDestination, ...) exported by these workspaces that have the label `expose` set to `true`
-
-
-Now, we're going to create a workspace for the team in charge of the Bookinfo application.
-
-The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
-
-Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s), add the following to the mesh-config dir of the management cluster config:
-
-```bash
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-```
-
-Then, the Bookinfo team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `bookinfo` workspace (so the `bookinfo-frontends` or the `bookinfo-backends` namespace), add the following to the mesh-config dir of the cluster1 gitops config: 
-
-```bash
+---
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
-  name: bookinfo
-  namespace: bookinfo-frontends
+  name: productpage
+  namespace: productpage
 spec:
   importFrom:
   - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
+    - name: reviews
+    - name: details
+    - name: gateways    
   exportTo:
   - workspaces:
     - name: gateways
-    resources:
-    - kind: SERVICE
-      labels:
-        app: productpage
-    - kind: SERVICE
-      labels:
-        app: reviews
-    - kind: ALL
-      labels:
-        expose: "true"
-```
+---
 
-The Bookinfo team has decided to export the following to the `gateway` workspace (using a reference):
-- the `productpage` and the `reviews` Kubernetes services
-- all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: details
+  namespace: details
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways 
+  exportTo:
+  - workspaces:
+    - name: productpage
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - workspace: details
+        labels:
+          app: details    
+---
+
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: reviews
+  namespace: reviews
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways 
+  exportTo:
+  - workspaces:
+    - name: productpage
+  options:
+    federation:
+      enabled: true
+      hostSuffix: global
+      serviceSelector:
+      - workspace: reviews
+        labels:
+          app: reviews
+
+```
 
 
 # Phase 2.3 Exposing a service 
@@ -320,7 +330,7 @@ The Bookinfo team has decided to export the following to the `gateway` workspace
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
 
-The Gateway team must create a `VirtualGateway` to configure the Istio Ingress Gateway in cluster1 to listen to incoming requests, add the following resource to the cluster1 mesh-config.
+The Gateway team must create a `VirtualGateway` to configure the Istio Ingress Gateway in cluster1 to listen to incoming requests, add the following resource to the mgmt mesh-config.
 
 ```bash
 apiVersion: networking.gloo.solo.io/v2
@@ -343,14 +353,14 @@ spec:
 ```
 
 Then, the Bookinfo team can create a `RouteTable` to determine how they want to handle the traffic.
-Add the following to the cluster1 mesh-config dir: 
+Add the following to the mgmt mesh-config dir: 
 
 ```bash
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
   name: productpage
-  namespace: bookinfo-frontends
+  namespace: productpage
   labels:
     expose: "true"
 spec:
@@ -365,52 +375,212 @@ spec:
     - name: productpage
       matchers:
       - uri:
-          exact: /productpage
-      - uri:
-          prefix: /static
-      - uri:
-          exact: /login
-      - uri:
-          exact: /logout
-      - uri:
-          prefix: /api/v1/products
+          prefix: /
       forwardTo:
         destinations:
           - ref:
               name: productpage
-              namespace: bookinfo-frontends
+              namespace: productpage
             port:
               number: 9080
+
 ```
 
 You should now be able to access the `productpage` application through the browser on the cluster 1 cluster ingress gateway.
 
+# Federation and multi cluster routing
 
-
-# Phase 1.5 Federation 
-
-At this point we have the traffic routed only on cluster1, let's federate the gateways, update the virtualGateway in the cluster1 mesh-config dir to add the federation
-
+In the following section we will explore the multi cluster traffic capabilities of Gloo Mesh, first we will need to unify the trust between all the clusters so we can establish a secure connection from end to end, we will use a RootTrust Policy for this: 
 
 ```bash
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualGateway
+
+apiVersion: admin.gloo.solo.io/v2
+kind: RootTrustPolicy
 metadata:
-  name: north-south-gw
-  namespace: istio-gateways
+  name: root-trust-policy
+  namespace: gloo-mesh
 spec:
-  workloads:
-    - selector:
-        labels:
-          istio: ingressgateway
-  listeners: 
-    - http: {}
-      port:
-        number: 80
-      allowedRouteTables:
-        - host: '*'
+  config:
+    mgmtServerCa:
+      generated: {}
+    autoRestartPods: true
 ```
 
-The Bookinfo app should be exposed an all the worklaod clusters now. 
+
+At this point we should be able to connect to the second cluster from cluster1. 
+
+## Multi cluster service discovery
+
+For Multi cluster discovery to work we will need to turn on federation on the workspace settings, the goal here is to allow the product page to connect to the detail service on cluster 2, we already have defined the federation in the workspace settings of the details app: 
 
 
+```
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: details
+  namespace: details
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways 
+  exportTo:
+  - workspaces:
+    - name: productpage
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - workspace: details
+        labels:
+          app: details    
+
+```
+
+
+Now we have the configuration needed to start routing traffic to cluster 2 from cluster1, let's create the following Route table to enable the traffic to the detail service: 
+
+```
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: details
+  namespace: productpage
+spec:
+  hosts:
+    - 'details.details.svc.cluster.local'
+  workloadSelectors: []
+  http:
+    - name: details
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: details
+              namespace: details
+              cluster: cluster2
+            port:
+              number: 9080
+```
+
+Now if you check the UI you should see the details section on the UI. 
+
+
+## Virtual Destination 
+
+Virtual destination is a powerful concept, where we can define a global accessible DNS name for a service across all the cluster, let's define one for the review service: 
+
+```
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: reviews
+  namespace: reviews
+spec:
+  hosts:
+  - reviews.global
+  services:
+  - namespace: reviews
+    labels:
+      app: reviews
+  ports:
+    - number: 9080
+      protocol: HTTP
+```
+
+Now using reviews.global we can reach the review service from any cluster, let's use it for the routing: 
+
+```
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: reviews
+  namespace: productpage
+spec:
+  hosts:
+    - 'reviews.reviews.svc.cluster.local'
+  workloadSelectors: []
+  http:
+    - name: reviews
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: reviews
+              namespace: reviews
+            kind: VIRTUAL_DESTINATION
+            port:
+              number: 9080
+```
+
+if you check the UI you will see now that the review service is accessible from the UI, even if the reviews service is not deployed on cluster1. 
+
+
+# Policies 
+
+
+Gloo Mesh allow us to use policies to affect the traffic, let's take an example of the failover policy and outlierDetection policy. 
+
+
+Create the following policies: 
+
+```
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FailoverPolicy
+metadata:
+  name: failover
+  namespace: productpage
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    localityMappings: []
+```
+
+
+```apiVersion: resilience.policy.gloo.solo.io/v2
+kind: OutlierDetectionPolicy
+metadata:
+  name: outlier-detection
+  namespace: productpage
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    consecutiveErrors: 2
+    interval: 5s
+    baseEjectionTime: 30s
+    maxEjectionPercent: 100
+```
+
+Now to attach the following policies we will just need to label our Virtual Destination configuration with failover=true: 
+
+```
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: reviews
+  namespace: reviews
+  labels:
+    failover: "true"  
+spec:
+  hosts:
+  - reviews.global
+  services:
+  - namespace: reviews
+    labels:
+      app: reviews
+  ports:
+    - number: 9080
+      protocol: HTTP
+```
