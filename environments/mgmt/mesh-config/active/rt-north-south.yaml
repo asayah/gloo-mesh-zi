@@ -16,7 +16,7 @@ spec:
   http:
     - name: productpage
       labels:
-#        oauth: "true"
+        oauth: "true"
       matchers:
       - uri:
           prefix: /
